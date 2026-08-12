@@ -48,28 +48,19 @@ DT_INGESTAO = datetime.now(timezone.utc).isoformat()
 
 
 def ler_vendas_csv() -> list[dict]:
-    """
-    Lê lakehouse/landing/vendas.csv e devolve uma lista de dicionários, um por linha,
-    EXATAMENTE como está no arquivo (não converta tipos, não filtre nada).
-
-    Dica: use csv.DictReader.
-    """
-    # TODO: implemente a leitura do arquivo lakehouse/landing/vendas.csv
-    raise NotImplementedError("Implemente ler_vendas_csv()")
+    registros = []
+    with open(LANDING / "vendas.csv", mode="r", encoding="utf-8", newline="") as arquivo:
+        leitor = csv.DictReader(arquivo) # usa o cabeçalho como chave do dicionario
+        for linha in leitor:
+            registros.append(dict(linha))
+    return registros
+            
 
 
 def ler_clientes_json() -> list[dict]:
-    """
-    Lê lakehouse/landing/clientes.json e devolve a lista de dicionários já presente
-    no arquivo. Alguns registros podem ter campos faltando (ex.: sem
-    "data_cadastro") ou campos extras (ex.: "telefone") -- não se preocupe
-    com isso agora, apenas carregue o JSON como ele é.
-
-    Dica: use json.load(). Repare que nem todo registro tem as mesmas
-    chaves -- isso é esperado na bronze.
-    """
-    # TODO: implemente a leitura do arquivo lakehouse/landing/clientes.json
-    raise NotImplementedError("Implemente ler_clientes_json()")
+    with open(LANDING / "clientes.json", mode="r", encoding="utf-8") as arquivo:
+        clientes = json.load(arquivo)
+    return clientes
 
 
 def ler_produtos_txt() -> list[dict]:
@@ -91,8 +82,21 @@ def ler_produtos_txt() -> list[dict]:
     o próprio arquivo, use .strip() para remover a quebra de linha e
     .split("|") para separar os campos.
     """
-    # TODO: implemente a leitura do arquivo lakehouse/landing/produtos.txt
-    raise NotImplementedError("Implemente ler_produtos_txt()")
+    registros = []
+    cabecalho = None
+    with open(LANDING / "produtos.txt", mode="r", encoding="utf-8") as arquivo: 
+        for linha in arquivo:
+            linha = linha.strip()
+            if not linha or linha.startswith("#"):
+                continue
+            campos = linha.split("|")
+            if cabecalho is None:
+                cabecalho = campos
+                continue
+            registro = dict(zip(cabecalho, campos)) # o zip associa a chave que vai ser do cabecalho com o valor que vai ser do campo
+            registros.append(registro)
+    return registros
+
 
 
 def adicionar_metadados(registros: list[dict], nome_arquivo: str) -> list[dict]:
