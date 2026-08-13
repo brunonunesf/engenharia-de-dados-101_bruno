@@ -80,31 +80,108 @@ def salvar_csv(registros: list[dict], caminho_saida: Path, colunas: list[str]) -
 
 
 def limpar_clientes(bronze: list[dict]) -> list[dict]:
-    """
-    Aplica as regras de limpeza de clientes descritas no topo do arquivo.
-    Retorna a lista final (sem duplicatas, sem e-mails inválidos).
-    """
-    # TODO: implemente a limpeza de clientes
-    raise NotImplementedError("Implemente limpar_clientes()")
+    clientes_por_id = {}
+    for cliente in bronze:
+        email = cliente.get("email", "").strip().lower() # esse "" eh so pra colocar um texto vazio e nao dar erro caso nao exista
+        if "@" not in email:
+            continue
+        id_cliente = int(cliente["id_cliente"])
+        estado = cliente.get("estado", "").strip().upper()
+        cliente_limpo = {
+            "id_cliente": id_cliente, 
+            "nome": cliente.get("nome", ""),
+            "email": email,
+            "cidade": cliente.get("cidade", ""),
+            "estado": estado,
+            "data_cadastro": cliente.get("data_cadastro", "")
+        }
+        clientes_por_id[id_cliente] = cliente_limpo
+    return list(clientes_por_id.values())
 
 
 def limpar_produtos(bronze: list[dict]) -> list[dict]:
-    """
-    Aplica as regras de limpeza de produtos descritas no topo do arquivo.
-    """
-    # TODO: implemente a limpeza de produtos
-    raise NotImplementedError("Implemente limpar_produtos()")
+    produtos_por_id = {}
+
+    categorias_por_nome = {categoria.lower(): categoria for categoria in CATEGORIAS_VALIDAS}
+    ativos = {
+    "sim": 1,
+    "1": 1,
+    "nao": 0,
+    "não": 0,
+    "0": 0,
+    "": 0
+    } #esses dois dicionarios foi para criar aquilo que vai ser de "referência"
+    for produto in bronze:
+        id_produto = int(produto["id_produto"])
+        if id_produto in produtos_por_id:
+            continue
+
+        preco_texto = produto["preco"].strip().replace(",", ".")
+        preco = float(preco_texto)
+
+        categoria_texto = produto["categoria"].strip().lower()
+        categoria = categorias_por_nome.get(categoria_texto)
+        if categoria is None:
+            continue
+
+        ativo_texto = produto.get("ativo", "").strip().lower()
+        ativo = ativos.get(ativo_texto, 0)
+
+        produto_limpo = {
+            "id_produto": id_produto,
+            "nome": produto.get("nome", ""),
+            "categoria": categoria,
+            "preco": preco,
+            "ativo": ativo
+        }
+        produtos_por_id[id_produto] = produto_limpo
+    return list(produtos_por_id.values())
+    
 
 
 def limpar_vendas(bronze: list[dict], ids_clientes_validos: set[int], ids_produtos_validos: set[int]) -> list[dict]:
-    """
-    Aplica as regras de limpeza de vendas descritas no topo do arquivo,
-    incluindo o filtro de integridade referencial contra clientes/produtos
-    já limpos.
-    """
-    # TODO: implemente a limpeza de vendas
-    raise NotImplementedError("Implemente limpar_vendas()")
+    vendas_limpas = []
+    ids_vendas_encontrados = set() # para ficar eficiente e nao ter duplicatas
+    for venda in bronze:
+        id_venda = int(venda["id_venda"])
+        id_cliente = int(venda["id_cliente"])
+        id_produto = int(venda["id_produto"])
+        if id_venda in ids_vendas_encontrados:
+            continue
+        if id_cliente not in ids_clientes_validos:
+            continue
+        if id_produto not in ids_produtos_validos:
+            continue
 
+        quantidade_texto = venda.get("quantidade", "").strip()
+        if not quantidade_texto:
+            continue
+        quantidade = int(quantidade_texto)
+        if quantidade <= 0:
+            continue
+
+        valor_texto = venda.get("valor_total", "").strip()
+        if not valor_texto:
+            continue
+        valor_total = float(valor_texto.replace(",", "."))
+
+        data = venda.get("data_venda", "").strip()
+        if "/" in data:
+            dia, mes, ano = data.split("/")
+            data = f"{ano}-{mes}-{dia}"
+        venda_limpa = {
+            "id_venda": id_venda,
+            "id_cliente": id_cliente,
+            "id_produto": id_produto,
+            "quantidade": quantidade,
+            "data_venda": data,
+            "valor_total": valor_total
+        }
+        vendas_limpas.append(venda_limpa)
+        ids_vendas_encontrados.add(id_venda)
+    return vendas_limpas
+
+        
 
 def main() -> None:
     clientes_bronze = ler_csv(BRONZE_SAIDA / "clientes_bronze.csv")
